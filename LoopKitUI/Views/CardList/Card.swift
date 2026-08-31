@@ -139,8 +139,9 @@ public struct CardBackground: View {
     }
 
     public var body: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
             .foregroundColor(color)
+            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 }
 
@@ -148,7 +149,9 @@ public struct CardSectionDivider: View {
     public init() {}
     
     public var body: some View {
-        Divider()
+        Rectangle()
+            .fill(Color(UIColor.separator).opacity(0.5))
+            .frame(height: 0.5)
             .padding(.trailing, -16)
     }
 }

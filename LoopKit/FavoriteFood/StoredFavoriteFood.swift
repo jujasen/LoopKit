@@ -15,13 +15,18 @@ public struct StoredFavoriteFood: FavoriteFood, Identifiable {
     public var carbsQuantity: HKQuantity
     public var foodType: String
     public var absorptionTime: TimeInterval
-    
-    public init(id: String = UUID().uuidString, name: String, carbsQuantity: HKQuantity, foodType: String, absorptionTime: TimeInterval) {
+    public var servingSize: String
+    /// `id` of the `FavoriteFoodFolder` this food is filed under, or `nil` when unfiled.
+    public var folderID: String?
+
+    public init(id: String = UUID().uuidString, name: String, carbsQuantity: HKQuantity, foodType: String, absorptionTime: TimeInterval, servingSize: String = "", folderID: String? = nil) {
         self.id = id
         self.name = name
         self.carbsQuantity = carbsQuantity
         self.foodType = foodType
         self.absorptionTime = absorptionTime
+        self.servingSize = servingSize
+        self.folderID = folderID
     }
 }
 
@@ -39,7 +44,10 @@ extension StoredFavoriteFood: Codable {
             name: try container.decode(String.self, forKey: .name),
             carbsQuantity: HKQuantity(unit: .gram(), doubleValue: try container.decode(Double.self, forKey: .carbsQuantity)),
             foodType: try container.decode(String.self, forKey: .foodType),
-            absorptionTime: try container.decode(TimeInterval.self, forKey: .absorptionTime)
+            absorptionTime: try container.decode(TimeInterval.self, forKey: .absorptionTime),
+            // Added after the first release of favorite foods; absent in previously stored foods.
+            servingSize: try container.decodeIfPresent(String.self, forKey: .servingSize) ?? "",
+            folderID: try container.decodeIfPresent(String.self, forKey: .folderID)
         )
     }
     
@@ -50,6 +58,8 @@ extension StoredFavoriteFood: Codable {
         try container.encode(carbsQuantity.doubleValue(for: .gram()), forKey: .carbsQuantity)
         try container.encode(foodType, forKey: .foodType)
         try container.encode(absorptionTime, forKey: .absorptionTime)
+        try container.encode(servingSize, forKey: .servingSize)
+        try container.encodeIfPresent(folderID, forKey: .folderID)
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -58,5 +68,7 @@ extension StoredFavoriteFood: Codable {
         case carbsQuantity
         case foodType
         case absorptionTime
+        case servingSize
+        case folderID
     }
 }

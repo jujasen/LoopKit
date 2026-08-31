@@ -19,8 +19,8 @@ public struct ActionButtonStyle: ButtonStyle {
     private let fontColor: Color
     private let backgroundColor: Color
     private let edgeColor: Color
-    private let cornerRadius: CGFloat = 10
-    private let squidge: CGFloat = 1
+    private let cornerRadius: CGFloat = 14
+    private let borderWidth: CGFloat = 1.5
 
     @Environment(\.isEnabled) private var isEnabled: Bool
 
@@ -43,17 +43,21 @@ public struct ActionButtonStyle: ButtonStyle {
 
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(configuration.isPressed ? -squidge : 0)
             .padding()
-            .foregroundColor(fontColor)
+            .foregroundColor(isEnabled ? fontColor : Color(.tertiaryLabel))
             .font(.headline)
             .frame(maxWidth: .infinity)
-            .background(isEnabled ? backgroundColor : Color(UIColor.lightGray))
-            .overlay(Color(.secondarySystemBackground).opacity(configuration.isPressed ? 0.35 : 0))
-            .cornerRadius(cornerRadius)
-            .padding(configuration.isPressed ? squidge : 0)
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(edgeColor))
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(isEnabled ? backgroundColor : Color(.tertiarySystemFill))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(isEnabled ? edgeColor : .clear, lineWidth: borderWidth)
+            )
             .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }

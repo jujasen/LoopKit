@@ -35107,6 +35107,17 @@
           }
         }
       }
+    },
+    "%1$@ carbs · %2$@ absorption" : {
+      "comment" : "Summary of a favorite food's carb quantity and absorption time (1: carb quantity, 2: absorption time)",
+      "localizations" : {
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ karbo · %2$@ absorpsjon"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
