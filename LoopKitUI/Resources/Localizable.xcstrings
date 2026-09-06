@@ -35118,6 +35118,28 @@
           }
         }
       }
+    },
+    "%1$lld serving sizes · %2$@ absorption" : {
+      "comment" : "Summary of a favorite food that has several serving sizes (1: number of serving sizes, 2: absorption time)",
+      "localizations" : {
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld mengder · %2$@ absorpsjon"
+          }
+        }
+      }
+    },
+    "Remove serving size" : {
+      "comment" : "Accessibility label for the button that removes one serving size from a favorite food",
+      "localizations" : {
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fjern mengde"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

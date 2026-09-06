@@ -169,10 +169,121 @@ public struct FavoriteFoodEmojiTile: View {
 /// Shared, localized summaries of a favorite food, so every surface describes a food the same way.
 public enum FavoriteFoodSummary {
     public static func carbsAndAbsorption(for food: FavoriteFood, carbFormatter: QuantityFormatter, absorptionTimeFormatter: DateComponentsFormatter) -> String {
-        String(
+        let absorption = food.absorptionTimeString(formatter: absorptionTimeFormatter)
+
+        if food.hasMultiplePortions {
+            return String(
+                format: LocalizedString("%1$lld serving sizes · %2$@ absorption", comment: "Summary of a favorite food that has several serving sizes (1: number of serving sizes, 2: absorption time)"),
+                food.portions.count,
+                absorption
+            )
+        }
+
+        return String(
             format: LocalizedString("%1$@ carbs · %2$@ absorption", comment: "Summary of a favorite food's carb quantity and absorption time (1: carb quantity, 2: absorption time)"),
             food.carbsString(formatter: carbFormatter),
-            food.absorptionTimeString(formatter: absorptionTimeFormatter)
+            absorption
         )
+    }
+
+    /// One line describing a single amount, e.g. "Half a slice · 8 g".
+    public static func portion(_ portion: FavoriteFoodPortion, carbFormatter: QuantityFormatter) -> String {
+        let carbs = portion.carbsString(formatter: carbFormatter)
+        return portion.hasName ? "\(portion.name) · \(carbs)" : carbs
+    }
+}
+
+/// An editable row for one amount of a favorite food: a free-text name and its carb quantity.
+public struct FavoriteFoodPortionRow: View {
+    @Binding private var name: String
+    @Binding private var quantity: Double?
+    @Binding private var isNameFocused: Bool
+    @Binding private var isQuantityFocused: Bool
+
+    private let namePlaceholder: String
+    private let preferredCarbUnit: HKUnit
+    private let onDelete: (() -> Void)?
+
+    @State private var carbInput: String = ""
+
+    private let formatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumIntegerDigits = 3
+        formatter.maximumFractionDigits = 1
+        return formatter
+    }()
+
+    public init(name: Binding<String>, quantity: Binding<Double?>, isNameFocused: Binding<Bool>, isQuantityFocused: Binding<Bool>, namePlaceholder: String, preferredCarbUnit: HKUnit = .gram(), onDelete: (() -> Void)? = nil) {
+        self._name = name
+        self._quantity = quantity
+        self._isNameFocused = isNameFocused
+        self._isQuantityFocused = isQuantityFocused
+        self.namePlaceholder = namePlaceholder
+        self.preferredCarbUnit = preferredCarbUnit
+        self.onDelete = onDelete
+    }
+
+    public var body: some View {
+        HStack(spacing: 8) {
+            if let onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.body)
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(LocalizedString("Remove serving size", comment: "Accessibility label for the button that removes one serving size from a favorite food")))
+            }
+
+            RowTextField(text: $name, isFocused: $isNameFocused) {
+                $0.textAlignment = .left
+                $0.placeholder = namePlaceholder
+                $0.font = .preferredFont(forTextStyle: .body)
+            }
+            .onTapGesture {
+                if !isNameFocused {
+                    isNameFocused = true
+                }
+            }
+
+            RowTextField(text: $carbInput, isFocused: $isQuantityFocused, maxLength: 5) {
+                $0.textAlignment = .right
+                $0.keyboardType = .decimalPad
+                $0.placeholder = "0"
+                $0.font = .preferredFont(forTextStyle: .body)
+            }
+            .frame(width: 56)
+            .onTapGesture {
+                if !isQuantityFocused {
+                    isQuantityFocused = true
+                }
+            }
+
+            Text(QuantityFormatter(for: preferredCarbUnit).localizedUnitStringWithPlurality())
+                .foregroundColor(Color(.secondaryLabel))
+        }
+        .onChange(of: carbInput) { newValue in
+            quantity = formatter.number(from: newValue)?.doubleValue
+        }
+        .onChange(of: quantity) { newQuantity in
+            updateCarbInput(with: newQuantity)
+        }
+        .onAppear {
+            updateCarbInput(with: quantity)
+        }
+    }
+
+    private func updateCarbInput(with newQuantity: Double?) {
+        // Leave a partially typed value alone, so "7," does not get rewritten while typing.
+        if let value = newQuantity {
+            let formatted = formatter.string(from: NSNumber(value: value)) ?? ""
+            if formatter.number(from: carbInput)?.doubleValue != value {
+                carbInput = formatted
+            }
+        }
+        else if formatter.number(from: carbInput) != nil {
+            carbInput = ""
+        }
     }
 }
