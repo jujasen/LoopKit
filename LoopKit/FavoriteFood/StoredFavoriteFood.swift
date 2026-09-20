@@ -21,25 +21,47 @@ public struct StoredFavoriteFood: FavoriteFood, Identifiable {
     /// `id` of the `FavoriteFoodFolder` this food is filed under, or `nil` when unfiled.
     public var folderID: String?
 
-    public init(id: String = UUID().uuidString, name: String, portions: [FavoriteFoodPortion], foodType: String, absorptionTime: TimeInterval, folderID: String? = nil) {
+    /// When this food was last edited, on whichever device edited it. Decides which side wins
+    /// when the same food was changed both here and in a caregiver app between two syncs.
+    public var updatedAt: Date
+
+    /// `_id` of the matching Nightscout food document, once the food has been shared.
+    public var nsID: String?
+
+    public init(id: String = UUID().uuidString, name: String, portions: [FavoriteFoodPortion], foodType: String, absorptionTime: TimeInterval, folderID: String? = nil, updatedAt: Date = Date(), nsID: String? = nil) {
         self.id = id
         self.name = name
         self.portions = portions.isEmpty ? [FavoriteFoodPortion(carbsQuantity: HKQuantity(unit: .gram(), doubleValue: 0))] : portions
         self.foodType = foodType
         self.absorptionTime = absorptionTime
         self.folderID = folderID
+        self.updatedAt = updatedAt
+        self.nsID = nsID
     }
 
     /// Convenience for a food with a single amount.
-    public init(id: String = UUID().uuidString, name: String, carbsQuantity: HKQuantity, foodType: String, absorptionTime: TimeInterval, servingSize: String = "", folderID: String? = nil) {
+    public init(id: String = UUID().uuidString, name: String, carbsQuantity: HKQuantity, foodType: String, absorptionTime: TimeInterval, servingSize: String = "", folderID: String? = nil, updatedAt: Date = Date(), nsID: String? = nil) {
         self.init(
             id: id,
             name: name,
             portions: [FavoriteFoodPortion(name: servingSize, carbsQuantity: carbsQuantity)],
             foodType: foodType,
             absorptionTime: absorptionTime,
-            folderID: folderID
+            folderID: folderID,
+            updatedAt: updatedAt,
+            nsID: nsID
         )
+    }
+
+    /// True when the two describe the same food to a user. Sharing compares content rather than
+    /// timestamps before writing, so an unchanged food is never pushed back and forth.
+    public func hasSameContent(as other: StoredFavoriteFood) -> Bool {
+        id == other.id
+            && name == other.name
+            && foodType == other.foodType
+            && absorptionTime == other.absorptionTime
+            && portions == other.portions
+            && folderID == other.folderID
     }
 
     /// The amount applied when the food is picked without choosing one — the first in the list.
@@ -91,7 +113,10 @@ extension StoredFavoriteFood: Codable {
             portions: portions,
             foodType: try container.decode(String.self, forKey: .foodType),
             absorptionTime: try container.decode(TimeInterval.self, forKey: .absorptionTime),
-            folderID: try container.decodeIfPresent(String.self, forKey: .folderID)
+            folderID: try container.decodeIfPresent(String.self, forKey: .folderID),
+            // Foods stored before sharing existed count as old, so a shared copy wins once.
+            updatedAt: try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast,
+            nsID: try container.decodeIfPresent(String.self, forKey: .nsID)
         )
     }
     
@@ -103,6 +128,8 @@ extension StoredFavoriteFood: Codable {
         try container.encode(foodType, forKey: .foodType)
         try container.encode(absorptionTime, forKey: .absorptionTime)
         try container.encodeIfPresent(folderID, forKey: .folderID)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encodeIfPresent(nsID, forKey: .nsID)
         // Mirrored so a downgrade to a build without portions still reads a usable food.
         try container.encode(carbsQuantity.doubleValue(for: .gram()), forKey: .carbsQuantity)
         try container.encode(servingSize, forKey: .servingSize)
@@ -117,5 +144,7 @@ extension StoredFavoriteFood: Codable {
         case servingSize
         case folderID
         case portions
+        case updatedAt
+        case nsID
     }
 }
