@@ -22,5 +22,7 @@ public enum LoopNotificationCategory: String {
     case remoteBolusFailure
     case remoteCarbs
     case remoteCarbsFailure
+    case remoteTherapySettings
+    case remoteTherapySettingsFailure
     case missedMeal
 }
