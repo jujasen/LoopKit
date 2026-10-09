@@ -313,6 +313,9 @@ public struct StoredSettings: Equatable {
     // This is the user's display preference glucose unit. TODO: Rename?
     public let bloodGlucoseUnit: HKUnit?
     public let automaticDosingStrategy: AutomaticDosingStrategy
+    /// A JSON object of the app's own settings that have no field here, such as its algorithm
+    /// experiments. Remote data services pass it on as is.
+    public let appSettings: Data?
     public let syncIdentifier: UUID
 
     public init(date: Date = Date(),
@@ -339,6 +342,7 @@ public struct StoredSettings: Equatable {
                 pumpDevice: HKDevice? = nil,
                 bloodGlucoseUnit: HKUnit? = nil,
                 automaticDosingStrategy: AutomaticDosingStrategy = .tempBasalOnly,
+                appSettings: Data? = nil,
                 syncIdentifier: UUID = UUID()) {
         self.date = date
         self.controllerTimeZone = controllerTimeZone
@@ -364,6 +368,7 @@ public struct StoredSettings: Equatable {
         self.pumpDevice = pumpDevice
         self.bloodGlucoseUnit = bloodGlucoseUnit
         self.automaticDosingStrategy = automaticDosingStrategy
+        self.appSettings = appSettings
         self.syncIdentifier = syncIdentifier
     }
 }
@@ -398,6 +403,7 @@ extension StoredSettings: Codable {
                   pumpDevice: try container.decodeIfPresent(CodableDevice.self, forKey: .pumpDevice)?.device,
                   bloodGlucoseUnit: bloodGlucoseUnit,
                   automaticDosingStrategy: try container.decodeIfPresent(AutomaticDosingStrategy.self, forKey: .automaticDosingStrategy) ?? .tempBasalOnly,
+                  appSettings: try container.decodeIfPresent(Data.self, forKey: .appSettings),
                   syncIdentifier: try container.decode(UUID.self, forKey: .syncIdentifier))
     }
 
@@ -428,6 +434,7 @@ extension StoredSettings: Codable {
         try container.encodeIfPresent(pumpDevice.map { CodableDevice($0) }, forKey: .pumpDevice)
         try container.encode(bloodGlucoseUnit.unitString, forKey: .bloodGlucoseUnit)
         try container.encode(automaticDosingStrategy, forKey: .automaticDosingStrategy)
+        try container.encodeIfPresent(appSettings, forKey: .appSettings)
         try container.encode(syncIdentifier, forKey: .syncIdentifier)
     }
 
@@ -472,6 +479,7 @@ extension StoredSettings: Codable {
         case pumpDevice
         case bloodGlucoseUnit
         case automaticDosingStrategy
+        case appSettings
         case syncIdentifier
     }
 }
