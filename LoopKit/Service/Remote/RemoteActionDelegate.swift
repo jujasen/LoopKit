@@ -15,6 +15,73 @@ public protocol RemoteActionDelegate: AnyObject {
     func deliverRemoteCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?) async throws
     func deliverRemoteBolus(amountInUnits: Double) async throws
     func applyRemoteTherapySettings(_ change: RemoteTherapySettingsChange) async throws
+    func editRemoteCarbs(_ edit: RemoteCarbEdit) async throws
+}
+
+/// A change to a carb entry the host already has, sent from a caregiver's phone.
+///
+/// The entry is found by its sync identifier, the `syncIdentifier` the host uploads with each carb
+/// treatment. A value that is absent is kept as it is; an empty `foodType` clears it. With `delete`
+/// the entry is removed and the other values are ignored. Only the shape is checked here; the host
+/// holds the new values to the same limits as a new remote carb entry.
+public struct RemoteCarbEdit: Equatable {
+    public let syncIdentifier: String
+    public let amountInGrams: Double?
+    public let absorptionTime: TimeInterval?
+    public let foodType: String?
+    public let startDate: Date?
+    public let delete: Bool
+
+    public init(
+        syncIdentifier: String,
+        amountInGrams: Double? = nil,
+        absorptionTime: TimeInterval? = nil,
+        foodType: String? = nil,
+        startDate: Date? = nil,
+        delete: Bool = false
+    ) throws {
+        guard !syncIdentifier.isEmpty else {
+            throw RemoteCarbEditError.missingSyncIdentifier
+        }
+        if !delete {
+            guard amountInGrams != nil || absorptionTime != nil || foodType != nil || startDate != nil else {
+                throw RemoteCarbEditError.nothingToChange
+            }
+            guard [amountInGrams, absorptionTime].compactMap({ $0 }).allSatisfy(\.isFinite) else {
+                throw RemoteCarbEditError.invalidValue
+            }
+        }
+
+        self.syncIdentifier = syncIdentifier
+        self.amountInGrams = delete ? nil : amountInGrams
+        self.absorptionTime = delete ? nil : absorptionTime
+        self.foodType = delete ? nil : foodType
+        self.startDate = delete ? nil : startDate
+        self.delete = delete
+    }
+}
+
+public enum RemoteCarbEditError: LocalizedError, Equatable {
+    case missingSyncIdentifier
+    case nothingToChange
+    case invalidValue
+    case entryNotFound
+    case entryNotEditable
+
+    public var errorDescription: String? {
+        switch self {
+        case .missingSyncIdentifier:
+            return LocalizedString("No carb entry given", comment: "Remote carb edit error: the command did not say which carb entry to change.")
+        case .nothingToChange:
+            return LocalizedString("No changes to the carb entry", comment: "Remote carb edit error: the command contained no new value.")
+        case .invalidValue:
+            return LocalizedString("Invalid value", comment: "Remote carb edit error: a value is not a finite number.")
+        case .entryNotFound:
+            return LocalizedString("The carb entry was not found", comment: "Remote carb edit error: no recent carb entry has the given sync identifier.")
+        case .entryNotEditable:
+            return LocalizedString("The carb entry was made by another app and cannot be changed", comment: "Remote carb edit error: the carb entry was not created by Loop.")
+        }
+    }
 }
 
 /// Therapy settings sent from a caregiver's phone.
