@@ -13,9 +13,22 @@ public protocol RemoteActionDelegate: AnyObject {
     func enactRemoteOverride(name: String, durationTime: TimeInterval?, remoteAddress: String) async throws
     func cancelRemoteOverride() async throws
     func deliverRemoteCarbs(amountInGrams: Double, absorptionTime: TimeInterval?, foodType: String?, startDate: Date?) async throws
-    func deliverRemoteBolus(amountInUnits: Double) async throws
+    /// - Parameter knownDosesUntil: The sender had seen every dose given by hand up to this time when
+    ///   it sent the bolus. A dose after it is one the sender did not know of, and the host gives
+    ///   nothing. Nil from a sender that does not say; nothing is checked then.
+    func deliverRemoteBolus(amountInUnits: Double, knownDosesUntil: Date?) async throws
     func applyRemoteTherapySettings(_ change: RemoteTherapySettingsChange) async throws
     func editRemoteCarbs(_ edit: RemoteCarbEdit) async throws
+}
+
+/// A remote action the host refused for a reason the sender should show in its own words.
+///
+/// The host's text (`localizedDescription`) is in the language of the phone with the pump. The
+/// details travel with the answer so the caregiver app can say the same in its own language and act
+/// on it.
+public protocol RemoteActionRejection: Error {
+    /// JSON values only (strings, numbers, arrays, dictionaries).
+    var remoteActionDetails: [String: Any] { get }
 }
 
 /// A change to a carb entry the host already has, sent from a caregiver's phone.
