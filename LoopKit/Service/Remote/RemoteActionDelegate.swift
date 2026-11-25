@@ -17,8 +17,85 @@ public protocol RemoteActionDelegate: AnyObject {
     ///   it sent the bolus. A dose after it is one the sender did not know of, and the host gives
     ///   nothing. Nil from a sender that does not say; nothing is checked then.
     func deliverRemoteBolus(amountInUnits: Double, knownDosesUntil: Date?) async throws
+    /// Saves a meal and gives its bolus in one step, as Loop's own «Save and Deliver».
+    ///
+    /// Everything is checked before anything is saved: the carbs against the limits of a remote
+    /// carb entry, the bolus against the maximum bolus and the doses its sender had seen. Then the
+    /// carbs are saved, and then the bolus is given through the same path as a remote bolus.
+    ///
+    /// - Returns: What was done, when all of it was done.
+    /// - Throws: `RemoteMealBolusError`, whose `outcome` says whether the carbs were saved. Its
+    ///   `underlyingError` says why the rest was not done.
+    func deliverRemoteMealBolus(_ mealBolus: RemoteMealBolus) async throws -> RemoteMealBolusOutcome
     func applyRemoteTherapySettings(_ change: RemoteTherapySettingsChange) async throws
     func editRemoteCarbs(_ edit: RemoteCarbEdit) async throws
+}
+
+/// A meal and its bolus, sent together from a caregiver's phone.
+public struct RemoteMealBolus: Equatable {
+    public let carbsInGrams: Double
+    public let absorptionTime: TimeInterval?
+    public let foodType: String?
+    public let startDate: Date?
+    /// The most insulin the sender approved, in units. 0 saves the carbs only.
+    public let approvedUnits: Double
+    /// The sender kept the bolus it suggested. The host then gives no more than its own fresh
+    /// recommendation with the meal, so a meal sent on old numbers never gets more than it needs
+    /// now. False when the sender chose the amount: that amount is given (up to the maximum bolus).
+    public let followsRecommendation: Bool
+    /// See `deliverRemoteBolus(amountInUnits:knownDosesUntil:)`.
+    public let knownDosesUntil: Date?
+
+    public init(carbsInGrams: Double, absorptionTime: TimeInterval? = nil, foodType: String? = nil, startDate: Date? = nil,
+                approvedUnits: Double, followsRecommendation: Bool, knownDosesUntil: Date?)
+    {
+        self.carbsInGrams = carbsInGrams
+        self.absorptionTime = absorptionTime
+        self.foodType = foodType
+        self.startDate = startDate
+        self.approvedUnits = approvedUnits
+        self.followsRecommendation = followsRecommendation
+        self.knownDosesUntil = knownDosesUntil
+    }
+}
+
+/// What the host did with a `RemoteMealBolus`.
+public struct RemoteMealBolusOutcome: Equatable {
+    /// The carb entry was saved. When true, the meal must never be sent again: only its bolus failed.
+    public let carbsSaved: Bool
+    public let carbsInGrams: Double
+    public let approvedUnits: Double
+    /// The host's fresh recommendation with the meal; nil when it could not be calculated.
+    public let recommendedUnits: Double?
+    /// The units the pump was asked for: 0 when no bolus was given or the pump surely gave
+    /// nothing; the full amount when the pump's answer was lost (it may have been given).
+    public let deliveredUnits: Double
+
+    public init(carbsSaved: Bool, carbsInGrams: Double, approvedUnits: Double, recommendedUnits: Double?, deliveredUnits: Double) {
+        self.carbsSaved = carbsSaved
+        self.carbsInGrams = carbsInGrams
+        self.approvedUnits = approvedUnits
+        self.recommendedUnits = recommendedUnits
+        self.deliveredUnits = deliveredUnits
+    }
+}
+
+/// A `RemoteMealBolus` that was not carried out in full.
+public struct RemoteMealBolusError: LocalizedError {
+    /// What was done before it stopped.
+    public let outcome: RemoteMealBolusOutcome
+    /// Why it stopped: a `RemoteActionRejection`, a `PumpManagerError` (`.uncertainDelivery` when the
+    /// bolus may have been given), or any other error.
+    public let underlyingError: Error
+
+    public init(outcome: RemoteMealBolusOutcome, underlyingError: Error) {
+        self.outcome = outcome
+        self.underlyingError = underlyingError
+    }
+
+    public var errorDescription: String? {
+        return underlyingError.localizedDescription
+    }
 }
 
 /// A remote action the host refused for a reason the sender should show in its own words.
